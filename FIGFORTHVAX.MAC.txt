@@ -22,41 +22,42 @@
 
 
 
+	R3-----POINTS TO BOTTOM OU USER AREA
+	R4-----USED AS A TEMPORARY ACCUMULATOR
+	R5-----USED AS A TEMPORARY ACCUMULATOR
+	R6-----POITS TO CURRENT INSTRUCTION
+	R7-----CONTAINS FOERTH W REGISTER
+	R8-----POITS TO CURRENT WORD ON RETURN STACK
+	R9-----POINTS TO FIRST FREE BYTE IN DATA STACK
+	R10----USED AS A TEMPORARY POINTER
+	R11----USED AS A TEMPORARY POINTER
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+				MEMORY MAP
+				
+	---------------------------------------
+	4 SCREEN BUFFERS
+	---------------------------------------
+	USER AREA
+	------------------------------------
+	RETURN STACK
+	-------------------------------------
+	TERMINAL BUFFER
+	--------------------
+	COMPUTATION STACK
+	----------------
+	FREE SPACE
+	-------------------------
+	TEXT BUFFER
+	-------------------
+	WORD BUFFER
+	----------------
+	PERMANENT DIRECTORY
+	---------------------
+	BOOT UP PARAMETERS
+	---------------
+	I/O INITIALIZATION
+	---------------
+	
 
 
 
@@ -83,7 +84,7 @@
 		.PSECT	VIRTUAL_MACHINE,WRT,EXE,LONG
 		.ENTRY	FORTH,^M<R3,R4,R5,R6,R7,R8,R9,R10,R11>
 
-START:	NOP
+START:	NOP					;TRANSLATE SYS$INPUT FOR I/O USE
 
 
 
@@ -137,13 +138,224 @@ FAB_WBLOCK:
 		$FAB	ALQ=1,FAC=PUT,FNA=FILNAM,FNS=FILSIZ,-
 				FOP=CTG,MRS=1024,NAM=NAMBLK,ORG=SEQ,RFM=FIX
 		
-COLD:	CLRL R3
-		CLRL R4
-		CLRL R5
+
+
+
+
+
+
+
+
+
+
+
+
+
+COLD:	CLRL 	R3
+		CLRL 	R4
+		CLRL	R5
 		CLRL R6
 		CLRL R7
 		CLRL R8
 		CLRL R9
 		CLRL R10
-		CLRL R11
+		CLRL 	R11
+		MOVW	#SRTPARM,R10
+		MOVW	#FRTH+14,R11
+		MOVW	(R10),(R11)
+		MOVB	#^X0B,R4
+		JMP		PUTF
+WARM:	CLRL	R4
+		MOVB	#^X08,R4
+PUTF:	MOVW	#SRTPARM+^X4,R10
+		MOVW	(R10),R3
+		MOVW 	#SRTPARM,R10
+		MOVW	R3,R11
+WRMLP:	MOVW	(R10)+,(R11)+
+		SOBGTR	R4,WRMLP
+		MOVW	#ABORT+2,R6
+		JMP		RP1+2
+		
+;				START OF FORTH PROGRAM
+;
+;
+;
+;				STARTUP PARAMETERS
+;
+
+		.ASCII 	/VAX 11-780/
+		.BLKW	2
+SERTPARM:
+		.WORD	TASK-7
+		.WORD 	^X7F
+		.WORD	FEND+^X5000
+		.WORD	FEND+^X4800
+		.WORD	FEND+^X4FFF
+		.WORD	31
+		.WORD	1
+		.WORD	FEND
+		.WORD	FEND
+		.WORD 	FRTH+16
+		
+		
+		
+		
+		
+		.BYTE	^X83
+		.ASCII 	/LI/
+		.BYTE	^XD4
+		.WORD	0
+LIT:	.WORD	LIT+2
+		ADDW2	#2,R9
+		MOVW	(R6)+,(R9)
+		MOVW	(R6)+,R7
+		MOVZWL	(R7)+,R11
+		JMP		(R11)
+		
+		.BYTE	^X87
+		.ASCII	/EXECUT/
+		.BYTE	^XC5
+		.WORD	LIT-6
+EXE:	.WORD	EXE+2
+		MOVW	(R9),R7
+		SUBW2	#2,R9
+		MOVZWL	(R7)+,R11
+		JMP		(R11)
+		
+		.BYTE	^X86
+		.ASCII	/BRANC/
+		.BYTE	^XC8
+		.WORD	EXE-10
+BRCH:	.WORD	BRCH+2
+		MOVW	(R6)+,R6
+		MOVW	(R6)+,R7
+		MOVZWL	(R7)+,R11
+		JMP		(R11)
+		
+		.BYTE	^X87
+		.ASCII	/0BRANC/
+		.BYTE	^XC8
+		.WORD	BRCH-9
+ZBRCH:	.WORD	ZBRCH+2
+		TSTW	(R9)
+		BEQLU	ZBR1
+		SUBW2	#2,R9
+		ADDW2	#2,R6
+		MOVW	(R6)+,R7
+		MOVZWL	(R7)+,R11
+		JMP		(R11)
+ZBR1:	SUBW2	#2,R9
+		MOVW	(R6)+,R6
+		MOVW	(R4)+,R7
+		MOVZWL	(R7)+,R11
+		JMP		(R11)
+		
+		.BYTE	^X86
+		.ASCII 	/(LOOP/
+		.BYTE	^XA9
+		.WORD	ZBRCH-10
+LUPE:	.WORD	LUPE+2
+		ADDW2	#1,(R8)
+		MOVW	(R8)+,R11				;INDEX AND TEST FOR LOOP COMPLETION
+		SUBW3	R11,(R8)+,R11
+		BGTR	LUPE2
+		ADDW2	#2,R6
+		MOVW	(R6)+,R7
+		MOVZWL	(R7)+,R11
+		JMP		(R11)
+LUPE2:	SUBW2	#4,R8
+		MOVW	(R6)+,R6
+		MOVW	(R6)+,R7
+		MOVZWL	(R7)+,R11
+		JMP		(R11)
+		
+		.BYTE	^X87
+		.ASCII	/(+LOOP/
+		.BYTE	^XA9
+		.WORD	LUPE-9
+PLUPE:	.WORD	PLUPE+2
+		TSTW	(R9)
+		BLSS	NPLUPE
+		ADDW3	(R8),(R9),(R8)
+		SUBW2	#2,R9
+		MOVW	(R8)+,R11
+		SUBW3	R11,(R8)+,R11
+		BGTR	PLUPE2
+		ADDW2	#2,R6
+		MOVW	(R6)+,R7
+		MOVZWL	(R7)+,R11
+		JMP		(R11)
+PLUPE2:	SUBW2	#4,R8
+		MOVW	(R6)+,R6
+		MOVW	(R6)+,R7
+		MOVZWL	(R7)+,R11
+		JMP		(R11)
+NPLUPE:	ADDW3	(R8),(R9),(R8)			; NEGATIVE INCREMENTS ARE HANDLED HERE
+		SUBW2	#2,R9
+		MOVW	(R8)+,R11
+		SUBW2	(R8)+,R11
+		BGTR	PLUPE2
+		ADDW2	#2,R6
+		MOVW	(R6)+,R7
+		MOVZWL	(R7)+,R11
+		JMP		(R11)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 END.
