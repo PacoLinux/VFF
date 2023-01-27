@@ -471,6 +471,19 @@ USLSH:	.WORD	USLSH+2
 		MOVZWL	(R7)+,R11
 		JMP		(R11)
 		
+		.BYTE	^X83
+		.ASCII	/AN/
+		.BYTE	^XC4
+		.WORD	USLSH-5
+FAND:	.WORD	FAND+2
+		MCOMW	(R9),R10
+		BICW2	R10,-(R9)
+		MOVW	(R6)+,R7
+		MOVZWL	(R7)+,R11
+		JMP		(R11)
+		
+		
+		
 
 
 
